@@ -1,72 +1,129 @@
-# UniResolve — University Complaint Management System
+# Campus Fix — Smart Campus Complaint and Maintenance Management System
 
-A full-stack complaint management system for universities, supporting **students**, **faculty**, and **admin** roles. Purple-themed UI, built with vanilla HTML/CSS/JS on the frontend and Python (Flask) + SQLite on the backend.
+A full-stack, enterprise-ready Java Web application built with **Java Servlets (Jakarta EE 6.0)**, **JDBC**, **MySQL**, **HTML5/CSS3**, and **Apache Tomcat 10+**, managed through **Maven WAR packaging**.
 
-## Features
+---
 
-- **Student & Faculty**: register/login, file complaints (with category, priority, optional anonymity), track status, comment on their own complaints.
-- **Admin**: dashboard with stats (totals by status/category), view & filter all complaints, assign complaints to staff, update status (Pending → In Progress → Resolved/Rejected), add internal notes, view all registered users.
-- Session-based authentication (cookies), password hashing (werkzeug).
-- SQLite database — zero setup, file-based (`complaints.db` is auto-created).
+## 🌟 Key Features
 
-## Project Structure
+1. **Role-Based Access Control**:
+   - **Student & Faculty**: Submit complaints, set urgency level, select campus category (Infrastructure, IT Services, Academic, etc.), submit anonymously, view live resolution updates.
+   - **Maintenance Staff / Technicians**: View assigned repair tickets, log diagnostic/repair notes, update progress states (`Assigned` → `In Progress` → `Resolved`).
+   - **Campus Administrator**: Complete operations dashboard, metric analytics by status and category, ticket assignment to technicians, priority triage, user directory management.
+
+2. **Full End-to-End Workflow**:
+   - Student files complaint → Admin prioritizes & assigns to technician → Technician logs progress & resolves → Student observes updated status and resolution log.
+
+3. **Enterprise Testing & CI/CD**:
+   - **JUnit 5** automated integration test covering the entire lifecycle with in-memory H2 database.
+   - **Maven WAR** build producing production-ready `campus-fix.war`.
+   - **Docker & Docker Compose** for one-command containerized deployment of MySQL 8 and Apache Tomcat 10.1.
+   - **Jenkins Pipeline (`Jenkinsfile`)** with stages for Checkout, JUnit test execution, SonarQube static analysis, WAR packaging, and Docker build.
+   - **SonarQube Configuration (`sonar-project.properties`)** for code quality scans.
+   - **GitHub Actions CI (`.github/workflows/ci.yml`)** running on push and PRs.
+
+---
+
+## 🏗️ Project Architecture
 
 ```
-complaint-system/
-├── backend/
-│   ├── app.py              # Flask app: routes, models, auth
-│   └── requirements.txt
-└── frontend/
-    ├── index.html           # Landing page
-    ├── css/style.css        # Purple theme
-    ├── js/
-    │   ├── api.js           # API client + auth helpers
-    │   └── complaint-ui.js  # Shared complaint list/modal rendering
-    └── pages/
-        ├── login.html
-        ├── register.html
-        ├── student-dashboard.html
-        ├── faculty-dashboard.html
-        └── admin-dashboard.html
+cmpfix/
+├── .github/workflows/ci.yml             # GitHub Actions CI workflow
+├── .settings/                           # Eclipse WTP & JDT project facet settings
+├── .classpath, .project                 # Native Eclipse IDE project files
+├── sql/
+│   └── schema.sql                       # MySQL schema & sample seed accounts
+├── src/
+│   ├── main/
+│   │   ├── java/com/campusfix/
+│   │   │   ├── dao/
+│   │   │   │   ├── ComplaintDAO.java    # JDBC Complaint operations & metrics
+│   │   │   │   └── UserDAO.java         # JDBC User registration & queries
+│   │   │   ├── model/
+│   │   │   │   ├── Complaint.java       # Complaint POJO
+│   │   │   │   └── User.java            # User POJO
+│   │   │   ├── servlet/
+│   │   │   │   ├── BaseServlet.java     # JSON helper & error handler
+│   │   │   │   ├── AuthServlet.java     # /api/auth (Login, Register, Logout, Me)
+│   │   │   │   ├── ComplaintServlet.java# /api/complaints (CRUD, status, assign)
+│   │   │   │   └── AdminServlet.java    # /api/admin (Stats, users, staff)
+│   │   │   └── util/
+│   │   │       ├── DBUtil.java          # JDBC Connection Manager (MySQL/H2)
+│   │   │       └── PasswordUtil.java    # BCrypt password hashing
+│   │   ├── resources/
+│   │   │   └── db.properties            # Database connection configuration
+│   │   └── webapp/
+│   │       ├── WEB-INF/web.xml          # Servlet container deployment descriptor
+│   │       ├── css/style.css            # Responsive UI stylesheet
+│   │       ├── js/
+│   │       │   ├── api.js               # Frontend API client
+│   │       │   └── complaint-ui.js      # Modal, lists, and badge rendering
+│   │       ├── pages/
+│   │       │   ├── login.html           # Authentication page
+│   │       │   ├── register.html        # User registration (Student/Faculty/Staff)
+│   │       │   ├── student-dashboard.html # Student issue submission & tracking
+│   │       │   ├── faculty-dashboard.html # Faculty issue submission & tracking
+│   │       │   └── admin-dashboard.html   # Admin triage & maintenance portal
+│   │       └── index.html               # Landing page
+│   └── test/java/com/campusfix/
+│       ├── dao/CampusFixWorkflowTest.java # JUnit 5 End-to-End Workflow test
+│       └── model/UserTest.java          # JUnit 5 POJO tests
+├── Dockerfile                           # Multi-stage Maven + Tomcat 10.1 image
+├── docker-compose.yml                   # MySQL 8 + Tomcat 10.1 composition
+├── Jenkinsfile                          # Jenkins declarative CI/CD pipeline
+├── sonar-project.properties             # SonarQube quality analysis
+└── pom.xml                              # Maven WAR build configuration
 ```
 
-## Setup
+---
 
-### 1. Backend (Flask API)
+## 🚀 Getting Started
 
+### 1. Database Setup (MySQL)
+Run the script in [sql/schema.sql](file:///c:/Users/divya/Downloads/cmpfix/sql/schema.sql) in MySQL Workbench, phpMyAdmin, or mysql CLI:
+```sql
+mysql -u root -p < sql/schema.sql
+```
+
+Default credentials seeded:
+- **Admin**: `admin@campusfix.edu` / `admin123`
+- **Maintenance Technician**: `tech@campusfix.edu` / `admin123`
+- **Student**: `student@campusfix.edu` / `admin123`
+
+### 2. Importing into Eclipse IDE
+1. Open Eclipse IDE (for Enterprise Java and Web Developers).
+2. Click **File** → **Import...** → **Maven** → **Existing Maven Projects**.
+3. Browse to `c:\Users\divya\Downloads\cmpfix` and click **Finish**.
+4. In the **Servers** tab, right-click → **New** → **Server** → select **Apache Tomcat v10.1** (or Tomcat 10.0).
+5. Add `campus-fix` to the configured resources and click **Start**.
+6. Access the application in your browser at: `http://localhost:8080/campus-fix/`
+
+### 3. Command Line Build & Testing
+Run tests:
+```powershell
+.\mvnw.cmd clean test
+```
+Build production WAR package:
+```powershell
+.\mvnw.cmd package -DskipTests
+```
+The resulting deployable WAR will be located at `target/campus-fix.war`.
+
+### 4. Running with Docker Compose
+To run both MySQL 8 and Apache Tomcat 10.1 with zero manual software installation:
 ```bash
-cd backend
-pip install -r requirements.txt
-python app.py
+docker compose up --build
 ```
+Then visit `http://localhost:8080/`.
 
-The API runs at `http://localhost:5000`. The SQLite database (`complaints.db`) and a default admin account are created automatically on first run:
+---
 
-- **Admin email:** `admin@university.edu`
-- **Admin password:** `admin123`
-
-> Change or remove this seeded account before deploying anywhere real.
-
-### 2. Frontend
-
-The frontend is plain HTML/CSS/JS — no build step needed. Just serve the `frontend` folder with any static server, e.g.:
-
-```bash
-cd frontend
-python -m http.server 8080
-```
-
-Then open `http://localhost:8080` in your browser.
-
-> The frontend calls the API at `http://localhost:5000/api` (see `API_BASE` in `frontend/js/api.js`). Update this if you deploy the backend elsewhere.
-
-## Roles & Flow
-
-1. **Student / Faculty** — register an account, choose the correct role toggle, then log in. From their dashboard they can file a new complaint and track ones they've already filed, including chatting via comments.
-2. **Admin** — log in with the seeded admin account (or promote a user manually in the database). From the admin dashboard: see overview stats, browse/filter/search every complaint, open a complaint to change its status, assign it to a staff member (by user ID, visible on the Users tab), add internal notes, and reply in the comment thread.
-
-## Notes on the tech stack
-
-- Backend: **Python 3 + Flask**, session cookies for auth, **SQLite** for storage (no external DB server needed). Swap in Postgres/MySQL later by changing the `sqlite3` calls in `app.py` if you outgrow SQLite.
-- Frontend: plain **HTML/CSS/JS**, no frameworks or build tools — easy to host on GitHub Pages, Netlify, or any static host (with the backend hosted separately, e.g. Render/Railway).
-- CORS is enabled with credentials so the two can run on different ports/origins during development.
+## 🧪 Testing and Verification Results
+- **Framework**: JUnit 5 (Jupiter 5.10.2).
+- **Execution**: 5 tests executed, 0 failures, 0 errors.
+- **Workflow Tested**:
+  1. Student registration & password BCrypt hashing.
+  2. Student complaint submission (`Pending`).
+  3. Admin assignment of technician (`Assigned`).
+  4. Technician work progression (`In Progress` → `Resolved`).
+  5. Student verification of resolution notes and timestamps.
