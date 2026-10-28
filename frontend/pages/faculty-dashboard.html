@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Faculty Dashboard — UniResolve</title>
+<link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+  <div class="page-wrap">
+    <header class="topbar" id="topbar"></header>
+
+    <div class="dash-layout">
+      <aside class="sidebar">
+        <div class="nav-item active" data-view="myComplaints">📋 My Complaints</div>
+        <div class="nav-item" data-view="newComplaint">➕ File Complaint</div>
+      </aside>
+
+      <main class="dash-main">
+        <div id="viewMyComplaints">
+          <div class="page-header">
+            <div>
+              <h2>My Complaints</h2>
+              <p>Track the status of complaints you've filed.</p>
+            </div>
+          </div>
+          <div class="filter-bar">
+            <select id="statusFilter">
+              <option value="All">All Statuses</option>
+              <option>Pending</option>
+              <option>In Progress</option>
+              <option>Resolved</option>
+              <option>Rejected</option>
+            </select>
+            <input type="text" id="searchInput" placeholder="Search my complaints..." />
+          </div>
+          <div id="complaintList"></div>
+        </div>
+
+        <div id="viewNewComplaint" style="display:none;">
+          <div class="page-header">
+            <div>
+              <h2>File a New Complaint</h2>
+              <p>Describe your issue clearly — this helps admins resolve it faster.</p>
+            </div>
+          </div>
+          <div class="card" style="max-width:640px;">
+            <div class="alert alert-error" id="formError"></div>
+            <div class="alert alert-success" id="formSuccess"></div>
+            <form id="complaintForm">
+              <div class="form-group">
+                <label>Title</label>
+                <input type="text" id="title" placeholder="Brief summary of your issue" required />
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Category</label>
+                  <select id="category"></select>
+                </div>
+                <div class="form-group">
+                  <label>Priority</label>
+                  <select id="priority">
+                    <option>Low</option>
+                    <option selected>Medium</option>
+                    <option>High</option>
+                    <option>Urgent</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Description</label>
+                <textarea id="description" placeholder="Explain the issue in detail..." required></textarea>
+              </div>
+              <div class="checkbox-row" style="margin-bottom:16px;">
+                <input type="checkbox" id="isAnonymous" />
+                <label for="isAnonymous" style="margin:0;font-weight:500;">File this complaint anonymously (hide my name from students, visible to admin)</label>
+              </div>
+              <button type="submit" class="btn btn-primary" id="submitBtn">Submit Complaint</button>
+            </form>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <footer class="site-footer">© 2026 UniResolve — University Complaint Management System</footer>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Complaint Details</h3>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/complaint-ui.js"></script>
+  <script>
+    let currentUser = null;
+
+    async function loadDashboardData() {
+      const status = document.getElementById("statusFilter").value;
+      const search = document.getElementById("searchInput").value;
+      const { complaints } = await api.listComplaints({ status, search });
+      renderComplaintList(document.getElementById("complaintList"), complaints, currentUser);
+    }
+
+    function switchView(view) {
+      document.getElementById("viewMyComplaints").style.display = view === "myComplaints" ? "block" : "none";
+      document.getElementById("viewNewComplaint").style.display = view === "newComplaint" ? "block" : "none";
+      document.querySelectorAll(".nav-item").forEach(n => n.classList.toggle("active", n.dataset.view === view));
+    }
+
+    (async () => {
+      currentUser = await requireAuth(["faculty"]);
+      if (!currentUser) return;
+      await renderTopbar(currentUser, "myComplaints");
+
+      const { categories } = await api.meta();
+      document.getElementById("category").innerHTML = categories.map(c => `<option>${c}</option>`).join("");
+
+      document.querySelectorAll(".nav-item").forEach(item => {
+        item.addEventListener("click", () => switchView(item.dataset.view));
+      });
+
+      document.getElementById("statusFilter").addEventListener("change", loadDashboardData);
+      document.getElementById("searchInput").addEventListener("input", debounce(loadDashboardData, 350));
+
+      document.getElementById("complaintForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const formError = document.getElementById("formError");
+        const formSuccess = document.getElementById("formSuccess");
+        formError.classList.remove("show"); formSuccess.classList.remove("show");
+        const btn = document.getElementById("submitBtn");
+        btn.disabled = true; btn.textContent = "Submitting...";
+
+        try {
+          await api.createComplaint({
+            title: document.getElementById("title").value.trim(),
+            description: document.getElementById("description").value.trim(),
+            category: document.getElementById("category").value,
+            priority: document.getElementById("priority").value,
+            is_anonymous: document.getElementById("isAnonymous").checked,
+          });
+          formSuccess.textContent = "Complaint filed successfully!";
+          formSuccess.classList.add("show");
+          document.getElementById("complaintForm").reset();
+          setTimeout(() => switchView("myComplaints"), 900);
+          loadDashboardData();
+        } catch (err) {
+          formError.textContent = err.message;
+          formError.classList.add("show");
+        } finally {
+          btn.disabled = false; btn.textContent = "Submit Complaint";
+        }
+      });
+
+      await loadDashboardData();
+    })();
+
+    function debounce(fn, ms) {
+      let t;
+      return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+    }
+
+    document.getElementById("modalOverlay").addEventListener("click", (e) => {
+      if (e.target.id === "modalOverlay") closeModal();
+    });
+  </script>
+</body>
+</html>

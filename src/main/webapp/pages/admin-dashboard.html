@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Campus Admin & Maintenance Dashboard — Campus Fix</title>
+<link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+  <div class="page-wrap">
+    <header class="topbar" id="topbar"></header>
+
+    <div class="dash-layout">
+      <aside class="sidebar">
+        <div class="nav-item active" data-view="overview">📊 Overview</div>
+        <div class="nav-item" data-view="allComplaints">🔧 Campus Complaints</div>
+        <div class="nav-item" data-view="users">👥 Directory & Staff</div>
+      </aside>
+
+      <main class="dash-main">
+        <!-- Overview -->
+        <div id="viewOverview">
+          <div class="page-header">
+            <div>
+              <h2>Operations & Maintenance Overview</h2>
+              <p>Campus-wide complaints, technician assignment workloads, and real-time resolution metrics.</p>
+            </div>
+          </div>
+          <div class="stat-grid" id="statGrid"></div>
+
+          <div class="card">
+            <h3 style="color:var(--purple-900);margin-bottom:14px;font-size:1.05rem;">Recent Maintenance Issues</h3>
+            <div id="recentList"></div>
+          </div>
+        </div>
+
+        <!-- All complaints -->
+        <div id="viewAllComplaints" style="display:none;">
+          <div class="page-header">
+            <div>
+              <h2>Complaints & Maintenance Tickets</h2>
+              <p>Assign tickets to staff, prioritize critical infrastructure, and update repair progress.</p>
+            </div>
+          </div>
+          <div class="filter-bar">
+            <select id="statusFilter">
+              <option value="All">All Statuses</option>
+              <option>Pending</option>
+              <option>Assigned</option>
+              <option>In Progress</option>
+              <option>Resolved</option>
+              <option>Rejected</option>
+            </select>
+            <select id="categoryFilter">
+              <option value="All">All Categories</option>
+            </select>
+            <input type="text" id="searchInput" placeholder="Search by title, location or keywords..." />
+          </div>
+          <div id="complaintList"></div>
+        </div>
+
+        <!-- Users & Technicians -->
+        <div id="viewUsers" style="display:none;">
+          <div class="page-header">
+            <div>
+              <h2>Campus Directory & Maintenance Technicians</h2>
+              <p>Active accounts across campus. Technicians with role <strong>maintenance</strong> can be assigned tickets using their ID.</p>
+            </div>
+          </div>
+          <div class="card">
+            <table style="width:100%;border-collapse:collapse;font-size:0.87rem;">
+              <thead>
+                <tr style="text-align:left;border-bottom:2px solid var(--purple-100);color:var(--purple-800);">
+                  <th style="padding:10px;">User ID</th>
+                  <th style="padding:10px;">Name</th>
+                  <th style="padding:10px;">Email</th>
+                  <th style="padding:10px;">Role</th>
+                  <th style="padding:10px;">Department / Trade</th>
+                  <th style="padding:10px;">ID Number</th>
+                </tr>
+              </thead>
+              <tbody id="usersTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <footer class="site-footer">© 2026 Campus Fix — Smart Campus Complaint & Maintenance Management System</footer>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Complaint Details & Actions</h3>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/complaint-ui.js"></script>
+  <script>
+    let currentUser = null;
+    let currentView = "overview";
+
+    function switchView(view) {
+      currentView = view;
+      document.getElementById("viewOverview").style.display = view === "overview" ? "block" : "none";
+      document.getElementById("viewAllComplaints").style.display = view === "allComplaints" ? "block" : "none";
+      document.getElementById("viewUsers").style.display = view === "users" ? "block" : "none";
+      document.querySelectorAll(".nav-item").forEach(n => n.classList.toggle("active", n.dataset.view === view));
+      loadDashboardData();
+    }
+
+    async function loadDashboardData() {
+      if (currentView === "overview") return loadOverview();
+      if (currentView === "allComplaints") return loadAllComplaints();
+      if (currentView === "users") return loadUsers();
+    }
+
+    async function loadOverview() {
+      const stats = await api.adminStats();
+      const statusOrder = ["Pending", "Assigned", "In Progress", "Resolved", "Rejected"];
+      const classes = { "Pending": "pending", "Assigned": "progress", "In Progress": "progress", "Resolved": "resolved", "Rejected": "rejected" };
+      const grid = document.getElementById("statGrid");
+      const byStat = stats.by_status || {};
+
+      grid.innerHTML = `
+        <div class="stat-card">
+          <div class="stat-value">${stats.total || 0}</div>
+          <div class="stat-label">Total Campus Complaints</div>
+        </div>
+        ${statusOrder.map(s => `
+          <div class="stat-card ${classes[s] || 'pending'}">
+            <div class="stat-value">${byStat[s] || 0}</div>
+            <div class="stat-label">${s}</div>
+          </div>
+        `).join("")}
+      `;
+
+      const { complaints } = await api.listComplaints();
+      const recent = (complaints || []).slice(0, 5);
+      renderComplaintList(document.getElementById("recentList"), recent, currentUser);
+    }
+
+    async function loadAllComplaints() {
+      const status = document.getElementById("statusFilter").value;
+      const category = document.getElementById("categoryFilter").value;
+      const search = document.getElementById("searchInput").value;
+      const { complaints } = await api.listComplaints({ status, category, search });
+      renderComplaintList(document.getElementById("complaintList"), complaints, currentUser);
+    }
+
+    async function loadUsers() {
+      const { users } = await api.adminUsers();
+      document.getElementById("usersTableBody").innerHTML = (users || []).map(u => `
+        <tr style="border-bottom:1px solid var(--purple-50);">
+          <td style="padding:10px;font-weight:700;">#${u.id}</td>
+          <td style="padding:10px;">${escapeHtml(u.name)}</td>
+          <td style="padding:10px;">${escapeHtml(u.email)}</td>
+          <td style="padding:10px;"><span class="role-badge" style="background:var(--purple-100);color:var(--purple-800);font-weight:700;">${u.role}</span></td>
+          <td style="padding:10px;">${escapeHtml(u.department || "-")}</td>
+          <td style="padding:10px;">${escapeHtml(u.idNumber || "-")}</td>
+        </tr>
+      `).join("");
+    }
+
+    (async () => {
+      currentUser = await requireAuth(["admin", "maintenance"]);
+      if (!currentUser) return;
+      await renderTopbar(currentUser, "overview");
+
+      const { categories } = await api.meta();
+      document.getElementById("categoryFilter").innerHTML += categories.map(c => `<option>${c}</option>`).join("");
+
+      document.querySelectorAll(".nav-item").forEach(item => {
+        item.addEventListener("click", () => switchView(item.dataset.view));
+      });
+
+      document.getElementById("statusFilter").addEventListener("change", loadDashboardData);
+      document.getElementById("categoryFilter").addEventListener("change", loadDashboardData);
+      document.getElementById("searchInput").addEventListener("input", debounce(loadDashboardData, 350));
+
+      await loadOverview();
+    })();
+
+    function debounce(fn, ms) {
+      let t;
+      return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+    }
+
+    document.getElementById("modalOverlay").addEventListener("click", (e) => {
+      if (e.target.id === "modalOverlay") closeModal();
+    });
+  </script>
+</body>
+</html>

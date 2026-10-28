@@ -1,0 +1,13 @@
+target/
+*.class
+*.jar
+*.war
+.tools/
+.metadata/
+.settings/
+.project
+.classpath
+complaints.db
+__pycache__/
+*.pyc
+.env

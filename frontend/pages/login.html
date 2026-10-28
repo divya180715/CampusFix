@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Login — UniResolve</title>
+<link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="brand-icon">🎓</div>
+        <h1>Welcome back</h1>
+        <p>Login to UniResolve — University Complaint Management</p>
+      </div>
+
+      <div class="alert alert-error" id="errorAlert"></div>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label>Email address</label>
+          <input type="email" id="email" placeholder="you@university.edu" required />
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="password" placeholder="••••••••" required />
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="loginBtn">Login</button>
+      </form>
+
+      <p class="auth-switch">Don't have an account? <a href="register.html">Register here</a></p>
+      <p class="auth-switch"><a href="../index.html">&larr; Back to home</a></p>
+
+      <div class="demo-hint">Admin demo login: <strong>admin@university.edu</strong> / <strong>admin123</strong></div>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script>
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const errorAlert = document.getElementById("errorAlert");
+      errorAlert.classList.remove("show");
+      const btn = document.getElementById("loginBtn");
+      btn.disabled = true; btn.textContent = "Logging in...";
+
+      try {
+        const { user } = await api.login({
+          email: document.getElementById("email").value.trim(),
+          password: document.getElementById("password").value,
+        });
+        window.location.href = dashboardUrlForRole(user.role);
+      } catch (err) {
+        errorAlert.textContent = err.message;
+        errorAlert.classList.add("show");
+        btn.disabled = false; btn.textContent = "Login";
+      }
+    });
+
+    // If already logged in, redirect straight to dashboard
+    (async () => {
+      try {
+        const { user } = await api.me();
+        if (user) window.location.href = dashboardUrlForRole(user.role);
+      } catch (e) {}
+    })();
+  </script>
+</body>
+</html>
