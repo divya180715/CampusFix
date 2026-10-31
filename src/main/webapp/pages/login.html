@@ -31,13 +31,6 @@
 
       <p class="auth-switch">Don't have an account? <a href="register.html">Register here</a></p>
       <p class="auth-switch"><a href="../index.html">&larr; Back to home</a></p>
-
-      <div class="demo-hint" style="text-align:left; line-height:1.6;">
-        <strong>Demo Accounts (password: admin123):</strong><br/>
-        • Admin: <code>admin@campusfix.edu</code><br/>
-        • Maintenance: <code>tech@campusfix.edu</code><br/>
-        • Student: <code>student@campusfix.edu</code>
-      </div>
     </div>
   </div>
 
@@ -67,8 +60,20 @@
     (async () => {
       try {
         const { user } = await api.me();
-        if (user) window.location.href = dashboardUrlForRole(user.role);
+        if (user) { window.location.href = dashboardUrlForRole(user.role); return; }
       } catch (e) {}
+
+      const quick = localStorage.getItem("quick_role");
+      if (quick) {
+        localStorage.removeItem("quick_role");
+        const roleEmails = {
+          "admin": "admin@campusfix.edu",
+          "maintenance": "tech@campusfix.edu",
+          "student": "student@campusfix.edu",
+          "faculty": "faculty@campusfix.edu"
+        };
+        if (roleEmails[quick]) fillLogin(roleEmails[quick]);
+      }
     })();
   </script>
 </body>

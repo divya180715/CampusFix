@@ -49,6 +49,7 @@ public class CampusFixWorkflowTest {
             stmt.execute("CREATE TABLE complaints (" +
                     "id INT AUTO_INCREMENT PRIMARY KEY, " +
                     "title VARCHAR(200) NOT NULL, " +
+                    "location VARCHAR(200) NULL, " +
                     "description TEXT NOT NULL, " +
                     "category VARCHAR(60) NOT NULL, " +
                     "priority VARCHAR(20) NOT NULL DEFAULT 'Medium', " +
@@ -58,6 +59,9 @@ public class CampusFixWorkflowTest {
                     "filed_by_role VARCHAR(20) NOT NULL, " +
                     "assigned_to INT NULL, " +
                     "admin_notes TEXT NULL, " +
+                    "resolution_notes TEXT NULL, " +
+                    "resolution_image TEXT NULL, " +
+                    "problem_image TEXT NULL, " +
                     "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
                     "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
                     "resolved_at TIMESTAMP NULL, " +
@@ -114,6 +118,7 @@ public class CampusFixWorkflowTest {
         // 1. Student submits complaint
         Complaint c = new Complaint();
         c.setTitle("Broken Light in Hall B");
+        c.setLocation("Main Science Block, Hall B, 1st Floor");
         c.setDescription("Ceiling fluorescent fixture sparking and not turning on.");
         c.setCategory("Infrastructure");
         c.setPriority("Urgent");
@@ -130,6 +135,7 @@ public class CampusFixWorkflowTest {
         assertNotNull(saved);
         assertEquals("Pending", saved.getStatus());
         assertEquals("Broken Light in Hall B", saved.getTitle());
+        assertEquals("Main Science Block, Hall B, 1st Floor", saved.getLocation());
 
         // 2. Admin assigns complaint to technician
         boolean assigned = complaintDAO.updateStatusAndAssignment(
@@ -159,8 +165,10 @@ public class CampusFixWorkflowTest {
                 c.getId(),
                 "Resolved",
                 technician.getId(),
+                "Inspection complete",
+                null,
                 "Ballast replaced and fixture tested successfully. All lights operational.",
-                null
+                "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
         );
         assertTrue(resolved);
 
@@ -168,7 +176,8 @@ public class CampusFixWorkflowTest {
         Complaint resolvedComplaint = complaintDAO.getComplaintById(c.getId());
         assertEquals("Resolved", resolvedComplaint.getStatus());
         assertNotNull(resolvedComplaint.getResolvedAt(), "Resolved timestamp should be recorded");
-        assertTrue(resolvedComplaint.getAdminNotes().contains("Ballast replaced"));
+        assertEquals("Ballast replaced and fixture tested successfully. All lights operational.", resolvedComplaint.getResolutionNotes());
+        assertNotNull(resolvedComplaint.getResolutionImage());
 
         // Verify dashboard statistics update
         Map<String, Object> stats = complaintDAO.getDashboardStats();

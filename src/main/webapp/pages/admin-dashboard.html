@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Campus Admin & Maintenance Dashboard — Campus Fix</title>
+<title>Admin Operations & Triage Dashboard — Campus Fix</title>
 <link rel="stylesheet" href="../css/style.css" />
 </head>
 <body>
@@ -13,7 +13,8 @@
     <div class="dash-layout">
       <aside class="sidebar">
         <div class="nav-item active" data-view="overview">📊 Overview</div>
-        <div class="nav-item" data-view="allComplaints">🔧 Campus Complaints</div>
+        <div class="nav-item" data-view="allComplaints">🔧 Assign & Triage</div>
+        <div class="nav-item" data-view="statusTracking">📈 Status Tracking</div>
         <div class="nav-item" data-view="users">👥 Directory & Staff</div>
       </aside>
 
@@ -22,14 +23,14 @@
         <div id="viewOverview">
           <div class="page-header">
             <div>
-              <h2>Operations & Maintenance Overview</h2>
+              <h2>Administrator Operations Overview</h2>
               <p>Campus-wide complaints, technician assignment workloads, and real-time resolution metrics.</p>
             </div>
           </div>
           <div class="stat-grid" id="statGrid"></div>
 
           <div class="card">
-            <h3 style="color:var(--purple-900);margin-bottom:14px;font-size:1.05rem;">Recent Maintenance Issues</h3>
+            <h3 style="color:var(--purple-900);margin-bottom:14px;font-size:1.05rem;">Recent Campus Complaints (Click to View / Assign)</h3>
             <div id="recentList"></div>
           </div>
         </div>
@@ -38,8 +39,8 @@
         <div id="viewAllComplaints" style="display:none;">
           <div class="page-header">
             <div>
-              <h2>Complaints & Maintenance Tickets</h2>
-              <p>Assign tickets to staff, prioritize critical infrastructure, and update repair progress.</p>
+              <h2>Complaint Triage & Staff Assignment</h2>
+              <p>Assign incoming tickets to maintenance technicians, set urgency priorities, and monitor resolution.</p>
             </div>
           </div>
           <div class="filter-bar">
@@ -59,24 +60,35 @@
           <div id="complaintList"></div>
         </div>
 
+        <!-- Dedicated Status Tracking Section for Admin -->
+        <div id="viewStatusTracking" style="display:none;">
+          <div class="page-header">
+            <div>
+              <h2>Live Status Tracking & Lifecycle Monitor</h2>
+              <p>Track the real-time solving progress of each complaint from submission through maintenance resolution.</p>
+            </div>
+          </div>
+          <div id="adminTrackingList"></div>
+        </div>
+
         <!-- Users & Technicians -->
         <div id="viewUsers" style="display:none;">
           <div class="page-header">
             <div>
-              <h2>Campus Directory & Maintenance Technicians</h2>
-              <p>Active accounts across campus. Technicians with role <strong>maintenance</strong> can be assigned tickets using their ID.</p>
+              <h2>Campus Directory & Maintenance Staff</h2>
+              <p>Registered users across campus. Technicians with role <strong>maintenance</strong> receive assigned work tickets.</p>
             </div>
           </div>
           <div class="card">
             <table style="width:100%;border-collapse:collapse;font-size:0.87rem;">
               <thead>
                 <tr style="text-align:left;border-bottom:2px solid var(--purple-100);color:var(--purple-800);">
-                  <th style="padding:10px;">User ID</th>
+                  <th style="padding:10px;">ID</th>
                   <th style="padding:10px;">Name</th>
                   <th style="padding:10px;">Email</th>
                   <th style="padding:10px;">Role</th>
                   <th style="padding:10px;">Department / Trade</th>
-                  <th style="padding:10px;">ID Number</th>
+                  <th style="padding:10px;">ID / Roll Number</th>
                 </tr>
               </thead>
               <tbody id="usersTableBody"></tbody>
@@ -92,7 +104,7 @@
   <div class="modal-overlay" id="modalOverlay">
     <div class="modal-box">
       <div class="modal-header">
-        <h3>Complaint Details & Actions</h3>
+        <h3>Complaint Details & Admin Triage</h3>
         <button class="modal-close" onclick="closeModal()">✕</button>
       </div>
       <div class="modal-body" id="modalBody"></div>
@@ -109,6 +121,7 @@
       currentView = view;
       document.getElementById("viewOverview").style.display = view === "overview" ? "block" : "none";
       document.getElementById("viewAllComplaints").style.display = view === "allComplaints" ? "block" : "none";
+      document.getElementById("viewStatusTracking").style.display = view === "statusTracking" ? "block" : "none";
       document.getElementById("viewUsers").style.display = view === "users" ? "block" : "none";
       document.querySelectorAll(".nav-item").forEach(n => n.classList.toggle("active", n.dataset.view === view));
       loadDashboardData();
@@ -117,7 +130,46 @@
     async function loadDashboardData() {
       if (currentView === "overview") return loadOverview();
       if (currentView === "allComplaints") return loadAllComplaints();
+      if (currentView === "statusTracking") return loadStatusTracking();
       if (currentView === "users") return loadUsers();
+    }
+
+    async function loadStatusTracking() {
+      const { complaints } = await api.listComplaints();
+      const container = document.getElementById("adminTrackingList");
+      if (!complaints || !complaints.length) {
+        container.innerHTML = `<div class="empty-state"><p>No complaints to track.</p></div>`;
+        return;
+      }
+      container.innerHTML = complaints.map(c => {
+        const assignedName = c.assignedToName || (c.assignedTo ? "Technician #" + c.assignedTo : "⚠️ Unassigned — Click to assign staff");
+        return `
+          <div class="card" style="margin-bottom:18px;cursor:pointer;" onclick="openComplaintModal(${c.id}, currentUser)">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
+              <div>
+                <h3 style="font-size:1.05rem;color:var(--purple-950);">#${c.id} — ${escapeHtml(c.title)}</h3>
+                <span style="font-size:0.8rem;color:var(--text-muted);">Filed by ${c.anonymous ? "Anonymous" : escapeHtml(c.filedByName || "User #" + c.filedBy)} on ${c.createdAt ? c.createdAt.toString().substring(0, 19) : "-"}</span>
+              </div>
+              <span class="badge ${statusBadgeClass(c.status)}">${c.status}</span>
+            </div>
+
+            <!-- Visual Stepper Progress Bar -->
+            ${renderStatusTrackerHtml(c.status)}
+
+            <div style="font-size:0.86rem; color:var(--text-dark); background:var(--purple-50); padding:10px 14px; border-radius:8px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+              <span><strong>Assigned Staff:</strong> ${escapeHtml(assignedName)}</span>
+              <span><strong>Category:</strong> ${escapeHtml(c.category)}</span>
+              <span><strong>Priority:</strong> <span class="badge ${priorityBadgeClass(c.priority)}" style="font-size:0.7rem;">${c.priority}</span></span>
+            </div>
+
+            ${c.resolutionNotes ? `
+              <div style="margin-top:10px; font-size:0.85rem; color:#166534; background:#f0fdf4; padding:8px 12px; border-radius:6px; border:1px solid #bbf7d0;">
+                <strong>Technician Resolution Note:</strong> ${escapeHtml(c.resolutionNotes)}
+              </div>
+            ` : ""}
+          </div>
+        `;
+      }).join("");
     }
 
     async function loadOverview() {
@@ -168,7 +220,7 @@
     }
 
     (async () => {
-      currentUser = await requireAuth(["admin", "maintenance"]);
+      currentUser = await requireAuth(["admin"]);
       if (!currentUser) return;
       await renderTopbar(currentUser, "overview");
 

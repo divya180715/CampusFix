@@ -79,7 +79,8 @@ async function requireAuth(expectedRoles = null) {
 }
 
 function dashboardUrlForRole(role) {
-  if (role === "admin" || role === "maintenance") return "admin-dashboard.html";
+  if (role === "admin") return "admin-dashboard.html";
+  if (role === "maintenance") return "maintenance-dashboard.html";
   if (role === "faculty") return "faculty-dashboard.html";
   return "student-dashboard.html";
 }
@@ -131,7 +132,16 @@ async function renderTopbar(user, activePage) {
     </div>
   `;
   document.getElementById("logoutBtn").addEventListener("click", async () => {
-    await api.logout();
-    window.location.href = "login.html";
+    try {
+      await api.logout();
+    } catch (e) {
+      /* ignore */
+    }
+    const path = window.location.pathname;
+    if (path.includes("/campus-fix/")) {
+      window.location.href = "/campus-fix/index.html";
+    } else {
+      window.location.href = "/index.html";
+    }
   });
 }

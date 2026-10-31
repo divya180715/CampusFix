@@ -13,6 +13,7 @@
     <div class="dash-layout">
       <aside class="sidebar">
         <div class="nav-item active" data-view="myComplaints">📋 My Complaints</div>
+        <div class="nav-item" data-view="statusTracking">📈 Status Tracking</div>
         <div class="nav-item" data-view="newComplaint">➕ File Complaint</div>
       </aside>
 
@@ -21,7 +22,7 @@
           <div class="page-header">
             <div>
               <h2>My Complaints</h2>
-              <p>Track the status of complaints you've filed.</p>
+              <p>Track the status of complaints you've filed. Click any item to inspect its progress or maintenance work log.</p>
             </div>
           </div>
           <div class="filter-bar">
@@ -35,6 +36,17 @@
             <input type="text" id="searchInput" placeholder="Search my complaints..." />
           </div>
           <div id="complaintList"></div>
+        </div>
+
+        <!-- Dedicated Status Tracking View -->
+        <div id="viewStatusTracking" style="display:none;">
+          <div class="page-header">
+            <div>
+              <h2>Live Status Tracking & Resolution Timeline</h2>
+              <p>Monitor where each issue stands in the resolution lifecycle: <strong>Submitted → Assigned → In Progress → Resolved</strong>.</p>
+            </div>
+          </div>
+          <div id="trackingList"></div>
         </div>
 
         <div id="viewNewComplaint" style="display:none;">
@@ -68,12 +80,22 @@
                 </div>
               </div>
               <div class="form-group">
+                <label>Location / Venue</label>
+                <input type="text" id="location" placeholder="e.g. Science Block, 2nd Floor, Room 204 / Library" />
+              </div>
+              <div class="form-group">
                 <label>Description</label>
                 <textarea id="description" placeholder="Explain the issue in detail..." required></textarea>
               </div>
+              <div class="form-group">
+                <label>Upload Problem Image (optional)</label>
+                <input type="file" id="problemImageFile" accept="image/*" />
+                <input type="hidden" id="problemImageBase64" />
+                <div id="facultyImagePreview" style="margin-top:8px;"></div>
+              </div>
               <div class="checkbox-row" style="margin-bottom:16px;">
                 <input type="checkbox" id="isAnonymous" />
-                <label for="isAnonymous" style="margin:0;font-weight:500;">File this complaint anonymously (hide my name from students, visible to admin)</label>
+                <label for="isAnonymous" style="margin:0;font-weight:500;">File this complaint anonymously</label>
               </div>
               <button type="submit" class="btn btn-primary" id="submitBtn">Submit Complaint</button>
             </form>
@@ -105,10 +127,55 @@
       const search = document.getElementById("searchInput").value;
       const { complaints } = await api.listComplaints({ status, search });
       renderComplaintList(document.getElementById("complaintList"), complaints, currentUser);
+      renderStatusTrackingView(complaints || []);
+    }
+
+    function renderStatusTrackingView(complaints) {
+      const container = document.getElementById("trackingList");
+      if (!complaints || !complaints.length) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="emoji">📭</div>
+            <p>You haven't filed any complaints yet.</p>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = complaints.map(c => {
+        const assignedName = c.assignedToName || (c.assignedTo ? "Technician #" + c.assignedTo : "Awaiting assignment by administrator");
+        return `
+          <div class="card" style="margin-bottom:18px;cursor:pointer;" onclick="openComplaintModal(${c.id}, currentUser)">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
+              <div>
+                <h3 style="font-size:1.05rem;color:var(--purple-950);">${escapeHtml(c.title)}</h3>
+                ${c.location ? `<div style="font-size:0.83rem;color:var(--purple-800);font-weight:600;margin-top:2px;">📍 ${escapeHtml(c.location)}</div>` : ""}
+                <span style="font-size:0.8rem;color:var(--text-muted);">Filed on ${c.createdAt ? c.createdAt.toString().substring(0, 19) : "-"}</span>
+              </div>
+              <span class="badge ${statusBadgeClass(c.status)}">${c.status}</span>
+            </div>
+
+            <!-- Visual Stepper Progress Bar -->
+            ${renderStatusTrackerHtml(c.status)}
+
+            <div style="font-size:0.86rem; color:var(--text-dark); background:var(--purple-50); padding:10px 14px; border-radius:8px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+              <span><strong>Assigned Staff:</strong> ${escapeHtml(assignedName)}</span>
+              <span><strong>Category:</strong> ${escapeHtml(c.category)}</span>
+              <span><strong>Priority:</strong> <span class="badge ${priorityBadgeClass(c.priority)}" style="font-size:0.7rem;">${c.priority}</span></span>
+            </div>
+
+            ${c.resolutionNotes ? `
+              <div style="margin-top:10px; font-size:0.85rem; color:#166534; background:#f0fdf4; padding:8px 12px; border-radius:6px; border:1px solid #bbf7d0;">
+                <strong>Technician Resolution Note:</strong> ${escapeHtml(c.resolutionNotes)}
+              </div>
+            ` : ""}
+          </div>
+        `;
+      }).join("");
     }
 
     function switchView(view) {
       document.getElementById("viewMyComplaints").style.display = view === "myComplaints" ? "block" : "none";
+      document.getElementById("viewStatusTracking").style.display = view === "statusTracking" ? "block" : "none";
       document.getElementById("viewNewComplaint").style.display = view === "newComplaint" ? "block" : "none";
       document.querySelectorAll(".nav-item").forEach(n => n.classList.toggle("active", n.dataset.view === view));
     }
@@ -128,6 +195,26 @@
       document.getElementById("statusFilter").addEventListener("change", loadDashboardData);
       document.getElementById("searchInput").addEventListener("input", debounce(loadDashboardData, 350));
 
+      const fileInput = document.getElementById("problemImageFile");
+      const base64Input = document.getElementById("problemImageBase64");
+      const preview = document.getElementById("facultyImagePreview");
+      if (fileInput) {
+        fileInput.addEventListener("change", (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          if (file.size > 2 * 1024 * 1024) {
+            alert("Image must be smaller than 2MB");
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = (loadEvt) => {
+            base64Input.value = loadEvt.target.result;
+            preview.innerHTML = `<img src="${loadEvt.target.result}" style="max-height:160px;border-radius:8px;border:1px solid #ddd;" />`;
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+
       document.getElementById("complaintForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         const formError = document.getElementById("formError");
@@ -139,14 +226,18 @@
         try {
           await api.createComplaint({
             title: document.getElementById("title").value.trim(),
+            location: (document.getElementById("location") ? document.getElementById("location").value.trim() : ""),
             description: document.getElementById("description").value.trim(),
             category: document.getElementById("category").value,
             priority: document.getElementById("priority").value,
             is_anonymous: document.getElementById("isAnonymous").checked,
+            problem_image: base64Input ? base64Input.value : null,
           });
           formSuccess.textContent = "Complaint filed successfully!";
           formSuccess.classList.add("show");
           document.getElementById("complaintForm").reset();
+          if (preview) preview.innerHTML = "";
+          if (base64Input) base64Input.value = "";
           setTimeout(() => switchView("myComplaints"), 900);
           loadDashboardData();
         } catch (err) {

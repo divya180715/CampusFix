@@ -89,10 +89,12 @@ public class ComplaintServlet extends BaseServlet {
         if (body == null) body = new HashMap<>();
 
         String title = (String) body.get("title");
+        String location = (String) body.get("location");
         String description = (String) body.get("description");
         String category = (String) body.get("category");
         String priority = (String) body.get("priority");
         Boolean isAnonymous = (Boolean) body.get("is_anonymous");
+        String problemImage = (String) body.get("problem_image");
 
         if (title == null || title.trim().isEmpty() || description == null || description.trim().isEmpty()) {
             sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Title and description are required");
@@ -101,10 +103,12 @@ public class ComplaintServlet extends BaseServlet {
 
         Complaint complaint = new Complaint();
         complaint.setTitle(title.trim());
+        complaint.setLocation(location != null ? location.trim() : null);
         complaint.setDescription(description.trim());
         complaint.setCategory(category != null ? category.trim() : "Other");
         complaint.setPriority(priority != null ? priority.trim() : "Medium");
         complaint.setAnonymous(isAnonymous != null && isAnonymous);
+        complaint.setProblemImage(problemImage);
         complaint.setFiledBy(user.getId());
         complaint.setFiledByRole(user.getRole());
 
@@ -160,17 +164,27 @@ public class ComplaintServlet extends BaseServlet {
             String status = (String) body.get("status");
             String adminNotes = (String) body.get("admin_notes");
             String priority = (String) body.get("priority");
+            String resolutionNotes = (String) body.get("resolution_notes");
+            String resolutionImage = (String) body.get("resolution_image");
 
             Integer assignedTo = null;
             if (body.containsKey("assigned_to") && body.get("assigned_to") != null) {
                 if (body.get("assigned_to") instanceof Number) {
                     assignedTo = ((Number) body.get("assigned_to")).intValue();
                 } else {
-                    assignedTo = Integer.parseInt(body.get("assigned_to").toString());
+                    String str = body.get("assigned_to").toString().trim();
+                    if (!str.isEmpty()) {
+                        assignedTo = Integer.parseInt(str);
+                    }
                 }
             }
 
-            boolean updated = complaintDAO.updateStatusAndAssignment(complaintId, status, assignedTo, adminNotes, priority);
+            // Maintenance technicians are not allowed to reassign tickets to other staff unless admin
+            if ("maintenance".equalsIgnoreCase(user.getRole())) {
+                assignedTo = null; // Ignore assignment changes from maintenance staff
+            }
+
+            boolean updated = complaintDAO.updateStatusAndAssignment(complaintId, status, assignedTo, adminNotes, priority, resolutionNotes, resolutionImage);
             if (updated) {
                 Complaint fresh = complaintDAO.getComplaintById(complaintId);
                 Map<String, Object> payload = new HashMap<>();

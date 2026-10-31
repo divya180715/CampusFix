@@ -8,6 +8,7 @@ public class Complaint implements Serializable {
 
     private int id;
     private String title;
+    private String location;
     private String description;
     private String category;
     private String priority; // Low, Medium, High, Urgent
@@ -19,6 +20,9 @@ public class Complaint implements Serializable {
     private Integer assignedTo;       // Nullable technician/admin user ID
     private String assignedToName;   // Joined display helper
     private String adminNotes;
+    private String resolutionNotes;
+    private String resolutionImage;
+    private String problemImage;
     private Timestamp createdAt;
     private Timestamp updatedAt;
     private Timestamp resolvedAt;
@@ -30,6 +34,9 @@ public class Complaint implements Serializable {
 
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
+
+    public String getLocation() { return location; }
+    public void setLocation(String location) { this.location = location; }
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
@@ -63,6 +70,15 @@ public class Complaint implements Serializable {
 
     public String getAdminNotes() { return adminNotes; }
     public void setAdminNotes(String adminNotes) { this.adminNotes = adminNotes; }
+
+    public String getResolutionNotes() { return resolutionNotes; }
+    public void setResolutionNotes(String resolutionNotes) { this.resolutionNotes = resolutionNotes; }
+
+    public String getResolutionImage() { return resolutionImage; }
+    public void setResolutionImage(String resolutionImage) { this.resolutionImage = resolutionImage; }
+
+    public String getProblemImage() { return problemImage; }
+    public void setProblemImage(String problemImage) { this.problemImage = problemImage; }
 
     public Timestamp getCreatedAt() { return createdAt; }
     public void setCreatedAt(Timestamp createdAt) { this.createdAt = createdAt; }

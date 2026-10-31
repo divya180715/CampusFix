@@ -12,17 +12,19 @@ import java.util.Map;
 public class ComplaintDAO {
 
     public boolean createComplaint(Complaint complaint) {
-        String sql = "INSERT INTO complaints (title, description, category, priority, status, is_anonymous, filed_by, filed_by_role) " +
-                     "VALUES (?, ?, ?, ?, 'Pending', ?, ?, ?)";
+        String sql = "INSERT INTO complaints (title, location, description, category, priority, status, is_anonymous, filed_by, filed_by_role, problem_image) " +
+                     "VALUES (?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?)";
         try (Connection conn = DBUtil.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, complaint.getTitle());
-            ps.setString(2, complaint.getDescription());
-            ps.setString(3, complaint.getCategory());
-            ps.setString(4, complaint.getPriority() != null ? complaint.getPriority() : "Medium");
-            ps.setInt(5, complaint.isAnonymous() ? 1 : 0);
-            ps.setInt(6, complaint.getFiledBy());
-            ps.setString(7, complaint.getFiledByRole());
+            ps.setString(2, complaint.getLocation());
+            ps.setString(3, complaint.getDescription());
+            ps.setString(4, complaint.getCategory());
+            ps.setString(5, complaint.getPriority() != null ? complaint.getPriority() : "Medium");
+            ps.setInt(6, complaint.isAnonymous() ? 1 : 0);
+            ps.setInt(7, complaint.getFiledBy());
+            ps.setString(8, complaint.getFiledByRole());
+            ps.setString(9, complaint.getProblemImage());
 
             int rows = ps.executeUpdate();
             if (rows > 0) {
@@ -57,8 +59,8 @@ public class ComplaintDAO {
             sql.append(" AND c.filed_by = ? ");
             params.add(userId);
         } else if ("maintenance".equalsIgnoreCase(role)) {
-            // Maintenance staff sees complaints assigned to them or unassigned pending in progress
-            sql.append(" AND (c.assigned_to = ? OR c.assigned_to IS NULL) ");
+            // Maintenance staff only sees tickets assigned to them by administrator
+            sql.append(" AND c.assigned_to = ? ");
             params.add(userId);
         }
         // admin sees everything
@@ -72,8 +74,9 @@ public class ComplaintDAO {
             params.add(category);
         }
         if (search != null && !search.trim().isEmpty()) {
-            sql.append(" AND (c.title LIKE ? OR c.description LIKE ?) ");
+            sql.append(" AND (c.title LIKE ? OR c.description LIKE ? OR c.location LIKE ?) ");
             String likePattern = "%" + search.trim() + "%";
+            params.add(likePattern);
             params.add(likePattern);
             params.add(likePattern);
         }
@@ -119,6 +122,10 @@ public class ComplaintDAO {
     }
 
     public boolean updateStatusAndAssignment(int complaintId, String status, Integer assignedTo, String adminNotes, String priority) {
+        return updateStatusAndAssignment(complaintId, status, assignedTo, adminNotes, priority, null, null);
+    }
+
+    public boolean updateStatusAndAssignment(int complaintId, String status, Integer assignedTo, String adminNotes, String priority, String resolutionNotes, String resolutionImage) {
         StringBuilder sql = new StringBuilder("UPDATE complaints SET ");
         List<Object> params = new ArrayList<>();
         boolean first = true;
@@ -150,6 +157,20 @@ public class ComplaintDAO {
             if (!first) sql.append(", ");
             sql.append("priority = ? ");
             params.add(priority);
+            first = false;
+        }
+
+        if (resolutionNotes != null) {
+            if (!first) sql.append(", ");
+            sql.append("resolution_notes = ? ");
+            params.add(resolutionNotes);
+            first = false;
+        }
+
+        if (resolutionImage != null) {
+            if (!first) sql.append(", ");
+            sql.append("resolution_image = ? ");
+            params.add(resolutionImage);
             first = false;
         }
 
@@ -222,6 +243,9 @@ public class ComplaintDAO {
         Complaint c = new Complaint();
         c.setId(rs.getInt("id"));
         c.setTitle(rs.getString("title"));
+        try {
+            c.setLocation(rs.getString("location"));
+        } catch (SQLException ignored) {}
         c.setDescription(rs.getString("description"));
         c.setCategory(rs.getString("category"));
         c.setPriority(rs.getString("priority"));
@@ -246,6 +270,15 @@ public class ComplaintDAO {
         } catch (SQLException ignored) {}
 
         c.setAdminNotes(rs.getString("admin_notes"));
+        try {
+            c.setResolutionNotes(rs.getString("resolution_notes"));
+        } catch (SQLException ignored) {}
+        try {
+            c.setResolutionImage(rs.getString("resolution_image"));
+        } catch (SQLException ignored) {}
+        try {
+            c.setProblemImage(rs.getString("problem_image"));
+        } catch (SQLException ignored) {}
         c.setCreatedAt(rs.getTimestamp("created_at"));
         c.setUpdatedAt(rs.getTimestamp("updated_at"));
         c.setResolvedAt(rs.getTimestamp("resolved_at"));

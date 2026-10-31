@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Maintenance Staff Workstation — Campus Fix</title>
+<link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+  <div class="page-wrap">
+    <header class="topbar" id="topbar"></header>
+
+    <div class="dash-layout">
+      <aside class="sidebar">
+        <div class="nav-item active" data-view="assigned">🛠️ Assigned Works</div>
+      </aside>
+
+      <main class="dash-main">
+        <!-- Assigned Tickets to this technician -->
+        <div id="viewAssigned">
+          <div class="page-header">
+            <div>
+              <h2>My Assigned Maintenance Work</h2>
+              <p>Review issue specifications in detail, conduct repairs, update work logs, and submit completion summaries with photo proof.</p>
+            </div>
+          </div>
+          <div class="filter-bar">
+            <select id="assignedStatusFilter">
+              <option value="All" selected>All Statuses</option>
+              <option value="Assigned">Assigned (Needs Action)</option>
+              <option value="In Progress">In Progress (Repair Underway)</option>
+              <option value="Resolved">Resolved (Completed)</option>
+            </select>
+            <input type="text" id="assignedSearchInput" placeholder="Filter my tickets..." />
+          </div>
+          <div id="assignedList"></div>
+        </div>
+      </main>
+    </div>
+
+    <footer class="site-footer">© 2026 Campus Fix — Smart Campus Complaint & Maintenance Management System</footer>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal-box" style="max-width:680px;">
+      <div class="modal-header">
+        <h3>Maintenance Issue Review & Work Log</h3>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/complaint-ui.js"></script>
+  <script>
+    let currentUser = null;
+
+    async function loadDashboardData() {
+      const status = document.getElementById("assignedStatusFilter").value;
+      const search = document.getElementById("assignedSearchInput").value;
+      const { complaints } = await api.listComplaints({ status, search });
+      renderComplaintList(document.getElementById("assignedList"), complaints || [], currentUser);
+    }
+
+    (async () => {
+      currentUser = await requireAuth(["maintenance"]);
+      if (!currentUser) return;
+      await renderTopbar(currentUser, "assigned");
+
+      document.getElementById("assignedStatusFilter").addEventListener("change", loadDashboardData);
+      document.getElementById("assignedSearchInput").addEventListener("input", debounce(loadDashboardData, 350));
+
+      await loadDashboardData();
+    })();
+
+    function debounce(fn, ms) {
+      let t;
+      return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+    }
+
+    document.getElementById("modalOverlay").addEventListener("click", (e) => {
+      if (e.target.id === "modalOverlay") closeModal();
+    });
+  </script>
+</body>
+</html>

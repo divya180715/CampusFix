@@ -12,7 +12,7 @@
       <div class="auth-logo">
         <div class="brand-icon">🔧</div>
         <h1>Create your account</h1>
-        <p>Register as a student, faculty member, or maintenance technician</p>
+        <p>Register as a Student, Faculty, Maintenance Staff, or Administrator</p>
       </div>
 
       <div class="alert alert-error" id="errorAlert"></div>
@@ -21,6 +21,7 @@
         <button type="button" class="active" data-role="student">🎒 Student</button>
         <button type="button" data-role="faculty">🧑‍🏫 Faculty</button>
         <button type="button" data-role="maintenance">🛠️ Maintenance</button>
+        <button type="button" data-role="admin">🛡️ Admin</button>
       </div>
 
       <form id="registerForm">
@@ -63,7 +64,7 @@
         btn.classList.add("active");
         selectedRole = btn.dataset.role;
         document.getElementById("idLabel").textContent =
-          selectedRole === "student" ? "Roll number" : (selectedRole === "faculty" ? "Faculty ID" : "Staff ID");
+          selectedRole === "student" ? "Roll number" : (selectedRole === "faculty" ? "Faculty ID" : (selectedRole === "admin" ? "Admin Employee ID" : "Staff / Tech ID"));
       });
     });
 
