@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Campus Fix — Smart Campus Complaint and Maintenance Management System
 
 A full-stack, enterprise-ready Java Web application built with **Java Servlets (Jakarta EE 6.0)**, **JDBC**, **MySQL**, **HTML5/CSS3**, and **Apache Tomcat 10+**, managed through **Maven WAR packaging**.
@@ -127,3 +128,7 @@ Then visit `http://localhost:8080/`.
   3. Admin assignment of technician (`Assigned`).
   4. Technician work progression (`In Progress` → `Resolved`).
   5. Student verification of resolution notes and timestamps.
+=======
+# CampusFix
+CampusFix is a Smart Campus Complaint and Maintenance Management System developed using Java, Jakarta Servlets, MySQL, HTML, CSS, and JavaScript. It enables students and faculty to report campus issues, administrators to assign complaints to maintenance staff, and staff to track and update resolution progress. 
+>>>>>>> b19b3add71bd4e26404fff75856a5fa4d2dd66da
